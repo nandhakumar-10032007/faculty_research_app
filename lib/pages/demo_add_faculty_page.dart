@@ -13,14 +13,18 @@ class DemoAddFacultyPage extends StatefulWidget {
 class _DemoAddFacultyPageState extends State<DemoAddFacultyPage> {
   File? selectedImage;
 
+  final TextEditingController orcidController = TextEditingController();
+  final TextEditingController scholarController = TextEditingController();
+  final TextEditingController scopusController = TextEditingController();
+
   Future<void> pickImage() async {
     final picker = ImagePicker();
-    final XFile? pickedImage =
+    final XFile? picked =
         await picker.pickImage(source: ImageSource.gallery);
 
-    if (pickedImage != null) {
+    if (picked != null) {
       setState(() {
-        selectedImage = File(pickedImage.path);
+        selectedImage = File(picked.path);
       });
     }
   }
@@ -32,10 +36,9 @@ class _DemoAddFacultyPageState extends State<DemoAddFacultyPage> {
         title: const Text('Add Faculty (Demo)'),
         centerTitle: true,
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             GestureDetector(
               onTap: pickImage,
@@ -49,18 +52,48 @@ class _DemoAddFacultyPageState extends State<DemoAddFacultyPage> {
               ),
             ),
             const SizedBox(height: 30),
+
+            TextField(
+              controller: orcidController,
+              decoration: const InputDecoration(
+                labelText: 'ORCID ID',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 15),
+
+            TextField(
+              controller: scholarController,
+              decoration: const InputDecoration(
+                labelText: 'Google Scholar ID',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 15),
+
+            TextField(
+              controller: scopusController,
+              decoration: const InputDecoration(
+                labelText: 'Scopus ID',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 30),
+
             ElevatedButton(
-              onPressed: selectedImage == null
-                  ? null
-                  : () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              FacultyProfilePage(image: selectedImage!),
-                        ),
-                      );
-                    },
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => FacultyProfilePage(
+                      image: selectedImage,
+                      orcidId: orcidController.text,
+                      scholarId: scholarController.text,
+                      scopusId: scopusController.text,
+                    ),
+                  ),
+                );
+              },
               child: const Text('View Faculty Profile'),
             ),
           ],
