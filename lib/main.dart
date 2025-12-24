@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'pages/demo_add_faculty_page.dart';
+
 
 void main() {
   runApp(const MyApp());
@@ -15,7 +17,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.deepPurple,
       ),
-      home: const HomePage(),
+     home: const DemoAddFacultyPage(),
     );
   }
 }
@@ -29,15 +31,6 @@ class HomePage extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Faculty Research App'),
         centerTitle: true,
-      ),
-      body: const Center(
-        child: Text(
-          'CSE RESEARCH',
-          style: TextStyle(
-            fontSize: 32,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
       ),
     );
   }
