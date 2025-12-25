@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "19730488060",
+    "project_id": "faculty-research-app",
+    "storage_bucket": "faculty-research-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:19730488060:android:2c3f6a8c0a908d12545579",
+        "android_client_info": {
+          "package_name": "com.example.faculty_research_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDFt2Vcyaizh0E9dM32vqX_q2oopA3zD_A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

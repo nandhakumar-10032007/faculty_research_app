@@ -10,10 +10,9 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return const MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Faculty Research App',
-      home: LoginSelectionPage(), // ✅ FIXED
+      home: LoginSelectionPage(), // 👈 VERY IMPORTANT
     );
   }
 }

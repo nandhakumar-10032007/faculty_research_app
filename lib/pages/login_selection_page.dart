@@ -18,7 +18,7 @@ class LoginSelectionPage extends StatelessWidget {
           children: [
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                minimumSize: const Size(220, 50),
+                minimumSize: const Size(200, 50),
               ),
               onPressed: () {
                 Navigator.push(
@@ -28,12 +28,12 @@ class LoginSelectionPage extends StatelessWidget {
                   ),
                 );
               },
-              child: const Text("Admin"),
+              child: const Text("Admin Login"),
             ),
             const SizedBox(height: 20),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                minimumSize: const Size(220, 50),
+                minimumSize: const Size(200, 50),
               ),
               onPressed: () {
                 Navigator.push(
@@ -43,7 +43,7 @@ class LoginSelectionPage extends StatelessWidget {
                   ),
                 );
               },
-              child: const Text("Faculty"),
+              child: const Text("Faculty Login"),
             ),
           ],
         ),

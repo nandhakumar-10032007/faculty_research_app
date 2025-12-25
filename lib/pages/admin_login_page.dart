@@ -1,20 +1,45 @@
 import 'package:flutter/material.dart';
+import '../services/auth_service.dart';
 import 'admin_home_page.dart';
 
-
-class AdminLoginPage extends StatelessWidget {
+class AdminLoginPage extends StatefulWidget {
   const AdminLoginPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final emailController = TextEditingController();
-    final passwordController = TextEditingController();
+  State<AdminLoginPage> createState() => _AdminLoginPageState();
+}
 
+class _AdminLoginPageState extends State<AdminLoginPage> {
+  final emailController = TextEditingController();
+  final passwordController = TextEditingController();
+  final AuthService _authService = AuthService();
+
+  String errorMessage = '';
+
+  void loginAdmin() async {
+    final user = await _authService.login(
+      emailController.text.trim(),
+      passwordController.text.trim(),
+    );
+
+    if (user == null) {
+      setState(() {
+        errorMessage = 'Invalid email or password';
+      });
+    } else {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const AdminHomePage(),
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Admin Login"),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: const Text("Admin Login")),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -36,23 +61,21 @@ class AdminLoginPage extends StatelessWidget {
                 border: OutlineInputBorder(),
               ),
             ),
-            const SizedBox(height: 25),
+            const SizedBox(height: 20),
             ElevatedButton(
-              onPressed: () {
-                // Demo login (no backend)
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => AdminHomePage(),
-                  ),
-                );
-              },
+              onPressed: loginAdmin,
               child: const Text("Login"),
             ),
+            if (errorMessage.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Text(
+                errorMessage,
+                style: const TextStyle(color: Colors.red),
+              ),
+            ]
           ],
         ),
       ),
     );
   }
 }
-

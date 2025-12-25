@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import '../data/faculty_data.dart';
 import 'login_selection_page.dart';
 
-
-
 class FacultyHomePage extends StatelessWidget {
   const FacultyHomePage({super.key});
 
