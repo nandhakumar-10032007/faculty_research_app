@@ -1,104 +1,97 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import 'faculty_profile_page.dart';
+import '../data/faculty_data.dart';
+import 'login_selection_page.dart';
 
-class DemoAddFacultyPage extends StatefulWidget {
-  const DemoAddFacultyPage({super.key});
 
-  @override
-  State<DemoAddFacultyPage> createState() => _DemoAddFacultyPageState();
-}
 
-class _DemoAddFacultyPageState extends State<DemoAddFacultyPage> {
-  File? selectedImage;
-
-  final TextEditingController orcidController = TextEditingController();
-  final TextEditingController scholarController = TextEditingController();
-  final TextEditingController scopusController = TextEditingController();
-
-  Future<void> pickImage() async {
-    final picker = ImagePicker();
-    final XFile? picked =
-        await picker.pickImage(source: ImageSource.gallery);
-
-    if (picked != null) {
-      setState(() {
-        selectedImage = File(picked.path);
-      });
-    }
-  }
+class FacultyHomePage extends StatelessWidget {
+  const FacultyHomePage({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Add Faculty (Demo)'),
-        centerTitle: true,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            GestureDetector(
-              onTap: pickImage,
-              child: CircleAvatar(
-                radius: 60,
-                backgroundImage:
-                    selectedImage != null ? FileImage(selectedImage!) : null,
-                child: selectedImage == null
-                    ? const Icon(Icons.camera_alt, size: 40)
-                    : null,
-              ),
-            ),
-            const SizedBox(height: 30),
+  title: const Text('Faculty Page'),
+  centerTitle: true,
+  actions: [
+    IconButton(
+      icon: const Icon(Icons.logout),
+      onPressed: () {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => LoginSelectionPage(),
 
-            TextField(
-              controller: orcidController,
-              decoration: const InputDecoration(
-                labelText: 'ORCID ID',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 15),
+          ),
+        );
+      },
+    ),
+  ],
+),
 
-            TextField(
-              controller: scholarController,
-              decoration: const InputDecoration(
-                labelText: 'Google Scholar ID',
-                border: OutlineInputBorder(),
+      body: facultyList.isEmpty
+          ? const Center(
+              child: Text(
+                'No faculty data available',
+                style: TextStyle(fontSize: 16),
               ),
-            ),
-            const SizedBox(height: 15),
+            )
+          : ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: facultyList.length,
+              itemBuilder: (context, index) {
+                final faculty = facultyList[index];
 
-            TextField(
-              controller: scopusController,
-              decoration: const InputDecoration(
-                labelText: 'Scopus ID',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 30),
+                return Card(
+                  elevation: 3,
+                  margin: const EdgeInsets.only(bottom: 15),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Center(
+                          child: CircleAvatar(
+                            radius: 40,
+                            backgroundColor: Colors.deepPurple.shade100,
+                            child: Text(
+                              faculty.name.isNotEmpty
+                                  ? faculty.name[0].toUpperCase()
+                                  : '?',
+                              style: const TextStyle(
+                                fontSize: 30,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 15),
 
-            ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => FacultyProfilePage(
-                      image: selectedImage,
-                      orcidId: orcidController.text,
-                      scholarId: scholarController.text,
-                      scopusId: scopusController.text,
+                        Center(
+                          child: Text(
+                            faculty.name,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 15),
+                        const Divider(),
+
+                       Text('ORCID ID: ${faculty.orcidId}'),
+                        const SizedBox(height: 5),
+                        Text('Google Scholar ID: ${faculty.scholarId}'),
+                        const SizedBox(height: 5),
+                        Text('Scopus ID: ${faculty.scopusId}'),
+
+                      ],
                     ),
                   ),
                 );
               },
-              child: const Text('View Faculty Profile'),
             ),
-          ],
-        ),
-      ),
     );
   }
 }
