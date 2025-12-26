@@ -1,8 +1,6 @@
-import 'package:faculty_research_app/pages/Faculty_Home_page.dart';
 import 'package:flutter/material.dart';
 import 'admin_login_page.dart';
-//import 'faculty_login_page.dart';
-import 'demo_faculty_page.dart';
+import 'faculty_login_page.dart';
 
 class LoginSelectionPage extends StatelessWidget {
   const LoginSelectionPage({super.key});
@@ -10,18 +8,12 @@ class LoginSelectionPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Login"),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: const Text('Login')),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size(200, 50),
-              ),
               onPressed: () {
                 Navigator.push(
                   context,
@@ -30,22 +22,19 @@ class LoginSelectionPage extends StatelessWidget {
                   ),
                 );
               },
-              child: const Text("Admin Login"),
+              child: const Text('Admin Login'),
             ),
             const SizedBox(height: 20),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size(200, 50),
-              ),
               onPressed: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => const FacultyHomePage(),
+                    builder: (_) => FacultyLoginPage(),
                   ),
                 );
               },
-              child: const Text("Faculty Login"),
+              child: const Text('Faculty Login'),
             ),
           ],
         ),

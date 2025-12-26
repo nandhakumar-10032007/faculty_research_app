@@ -27,8 +27,8 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
     });
 
     try {
-      // 🔐 Firebase Authentication
-      UserCredential userCredential =
+      // Firebase Authentication
+      final userCredential =
           await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email,
         password: password,
@@ -36,33 +36,29 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
 
       final uid = userCredential.user!.uid;
 
-      // 📦 Firestore admin check (IMPORTANT FIX)
+      // Firestore admin role check
       final adminDoc = await FirebaseFirestore.instance
-          .collection('admins') // ✅ correct collection
+          .collection('admins')
           .doc(uid)
           .get();
 
       if (!adminDoc.exists) {
         throw FirebaseAuthException(
           code: 'not-admin',
-          message: 'You are not an admin',
+          message: 'You are not authorized as admin',
         );
       }
 
-      // ✅ SUCCESS → Admin Home
+      // Success
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const AdminHomePage()),
       );
     } on FirebaseAuthException catch (e) {
-      print("LOGIN ERROR CODE: ${e.code}");
-      print("LOGIN ERROR MESSAGE: ${e.message}");
-
       setState(() {
         errorText = e.message ?? 'Login failed';
       });
     } catch (e) {
-      print("UNKNOWN ERROR: $e");
       setState(() {
         errorText = 'Something went wrong';
       });
@@ -83,7 +79,7 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Admin Login")),
+      appBar: AppBar(title: const Text('Admin Login')),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -92,7 +88,7 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
             TextField(
               controller: _emailController,
               decoration: const InputDecoration(
-                labelText: "Admin Email",
+                labelText: 'Admin Email',
                 border: OutlineInputBorder(),
               ),
             ),
@@ -101,7 +97,7 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
               controller: _passwordController,
               obscureText: true,
               decoration: const InputDecoration(
-                labelText: "Password",
+                labelText: 'Password',
                 border: OutlineInputBorder(),
               ),
             ),
@@ -110,15 +106,12 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
               onPressed: loading ? null : adminLogin,
               child: loading
                   ? const CircularProgressIndicator()
-                  : const Text("Login"),
+                  : const Text('Login'),
             ),
             if (errorText.isNotEmpty) ...[
               const SizedBox(height: 10),
-              Text(
-                errorText,
-                style: const TextStyle(color: Colors.red),
-              ),
-            ]
+              Text(errorText, style: const TextStyle(color: Colors.red)),
+            ],
           ],
         ),
       ),

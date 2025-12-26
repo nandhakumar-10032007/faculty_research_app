@@ -14,71 +14,88 @@ class _FacultyLoginPageState extends State<FacultyLoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
-  String errorText = '';
   bool loading = false;
+  String errorText = '';
 
   bool isCollegeEmail(String email) {
-    return email.endsWith('@citchennai.net'); // 🔴 CHANGE DOMAIN HERE
+    return email.endsWith('@citchennai.net');
   }
 
   Future<void> facultyLogin() async {
-  final email = _emailController.text.trim();
-  final password = _passwordController.text.trim();
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
 
-  if (!isCollegeEmail(email)) {
+    if (!isCollegeEmail(email)) {
+      setState(() {
+        errorText = 'Use college email only';
+      });
+      return;
+    }
+
+    if (password.length < 6) {
+      setState(() {
+        errorText = 'Password must be at least 6 characters';
+      });
+      return;
+    }
+
     setState(() {
-      errorText = 'Use college email only';
+      loading = true;
+      errorText = '';
     });
-    return;
+
+    try {
+      // 🔐 Try login
+      UserCredential userCredential =
+          await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      await _goToFacultyHome(userCredential.user!.uid);
+    } on FirebaseAuthException catch (e) {
+      // 👤 If user not found → REGISTER automatically
+      if (e.code == 'user-not-found') {
+        try {
+          UserCredential newUser =
+              await FirebaseAuth.instance.createUserWithEmailAndPassword(
+            email: email,
+            password: password,
+          );
+
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(newUser.user!.uid)
+              .set({
+            'email': email,
+            'role': 'faculty',
+            'createdAt': Timestamp.now(),
+          });
+
+          await _goToFacultyHome(newUser.user!.uid);
+        } catch (e) {
+          setState(() {
+            errorText = 'Account creation failed';
+          });
+        }
+      } else {
+        setState(() {
+          errorText = e.message ?? 'Login failed';
+        });
+      }
+    } finally {
+      setState(() {
+        loading = false;
+      });
+    }
   }
 
-  setState(() {
-    loading = true;
-    errorText = '';
-  });
-
-  try {
-    // 🔐 Firebase Authentication
-    UserCredential userCredential = await FirebaseAuth.instance
-        .signInWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
-
-    final uid = userCredential.user!.uid;
-
-    // 📦 Read Firestore role
-    final userDoc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(uid)
-        .get();
-
-    if (!userDoc.exists) {
-      throw 'User role not found';
-    }
-
-    final role = userDoc['role'];
-
-    if (role != 'faculty') {
-      throw 'Not a faculty account';
-    }
-
-    // ✅ SUCCESS → Faculty Home
+  Future<void> _goToFacultyHome(String uid) async {
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (_) => const FacultyHomePage()),
     );
-  } catch (e) {
-    setState(() {
-      errorText = 'Invalid faculty login';
-    });
-  } finally {
-    setState(() {
-      loading = false;
-    });
   }
-}
-
 
   @override
   Widget build(BuildContext context) {
