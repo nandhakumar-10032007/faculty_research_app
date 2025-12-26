@@ -1,3 +1,4 @@
+import 'package:faculty_research_app/pages/Faculty_Home_page.dart';
 import 'package:flutter/material.dart';
 import 'admin_login_page.dart';
 //import 'faculty_login_page.dart';
@@ -40,7 +41,7 @@ class LoginSelectionPage extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => const DemoFacultyPage(),
+                    builder: (_) => const FacultyHomePage(),
                   ),
                 );
               },
