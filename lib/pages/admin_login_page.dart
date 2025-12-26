@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../services/auth_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'admin_home_page.dart';
 
 class AdminLoginPage extends StatefulWidget {
@@ -10,30 +11,73 @@ class AdminLoginPage extends StatefulWidget {
 }
 
 class _AdminLoginPageState extends State<AdminLoginPage> {
-  final emailController = TextEditingController();
-  final passwordController = TextEditingController();
-  final AuthService _authService = AuthService();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
 
-  String errorMessage = '';
+  String errorText = '';
+  bool loading = false;
 
-  void loginAdmin() async {
-    final user = await _authService.login(
-      emailController.text.trim(),
-      passwordController.text.trim(),
-    );
+  Future<void> adminLogin() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
 
-    if (user == null) {
-      setState(() {
-        errorMessage = 'Invalid email or password';
-      });
-    } else {
+    setState(() {
+      loading = true;
+      errorText = '';
+    });
+
+    try {
+      // 🔐 Firebase Authentication
+      UserCredential userCredential =
+          await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      final uid = userCredential.user!.uid;
+
+      // 📦 Firestore admin check (IMPORTANT FIX)
+      final adminDoc = await FirebaseFirestore.instance
+          .collection('admins') // ✅ correct collection
+          .doc(uid)
+          .get();
+
+      if (!adminDoc.exists) {
+        throw FirebaseAuthException(
+          code: 'not-admin',
+          message: 'You are not an admin',
+        );
+      }
+
+      // ✅ SUCCESS → Admin Home
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-          builder: (_) => const AdminHomePage(),
-        ),
+        MaterialPageRoute(builder: (_) => const AdminHomePage()),
       );
+    } on FirebaseAuthException catch (e) {
+      print("LOGIN ERROR CODE: ${e.code}");
+      print("LOGIN ERROR MESSAGE: ${e.message}");
+
+      setState(() {
+        errorText = e.message ?? 'Login failed';
+      });
+    } catch (e) {
+      print("UNKNOWN ERROR: $e");
+      setState(() {
+        errorText = 'Something went wrong';
+      });
+    } finally {
+      setState(() {
+        loading = false;
+      });
     }
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
   }
 
   @override
@@ -46,7 +90,7 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             TextField(
-              controller: emailController,
+              controller: _emailController,
               decoration: const InputDecoration(
                 labelText: "Admin Email",
                 border: OutlineInputBorder(),
@@ -54,7 +98,7 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
             ),
             const SizedBox(height: 15),
             TextField(
-              controller: passwordController,
+              controller: _passwordController,
               obscureText: true,
               decoration: const InputDecoration(
                 labelText: "Password",
@@ -63,13 +107,15 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
             ),
             const SizedBox(height: 20),
             ElevatedButton(
-              onPressed: loginAdmin,
-              child: const Text("Login"),
+              onPressed: loading ? null : adminLogin,
+              child: loading
+                  ? const CircularProgressIndicator()
+                  : const Text("Login"),
             ),
-            if (errorMessage.isNotEmpty) ...[
+            if (errorText.isNotEmpty) ...[
               const SizedBox(height: 10),
               Text(
-                errorMessage,
+                errorText,
                 style: const TextStyle(color: Colors.red),
               ),
             ]
