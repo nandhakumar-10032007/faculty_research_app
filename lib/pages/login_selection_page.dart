@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'admin_login_page.dart';
-import 'faculty_login_page.dart';
+//import 'faculty_login_page.dart';
+import 'demo_faculty_page.dart';
 
 class LoginSelectionPage extends StatelessWidget {
   const LoginSelectionPage({super.key});
@@ -39,7 +40,7 @@ class LoginSelectionPage extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => const FacultyLoginPage(),
+                    builder: (_) => const DemoFacultyPage(),
                   ),
                 );
               },
