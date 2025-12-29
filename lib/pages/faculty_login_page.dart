@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'faculty_home_page.dart';
 
 class FacultyLoginPage extends StatefulWidget {
@@ -11,8 +10,8 @@ class FacultyLoginPage extends StatefulWidget {
 }
 
 class _FacultyLoginPageState extends State<FacultyLoginPage> {
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
 
   bool loading = false;
   String errorText = '';
@@ -21,21 +20,28 @@ class _FacultyLoginPageState extends State<FacultyLoginPage> {
     return email.endsWith('@citchennai.net');
   }
 
-  Future<void> facultyLogin() async {
+  String friendlyError(String code) {
+    switch (code) {
+      case 'email-already-in-use':
+        return 'Account already exists. Please login.';
+      case 'invalid-email':
+        return 'Invalid email address';
+      case 'weak-password':
+        return 'Password must be at least 6 characters';
+      case 'invalid-credential':
+      case 'wrong-password':
+        return 'Invalid email or password';
+      default:
+        return 'Authentication failed';
+    }
+  }
+
+  Future<void> loginUser() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
 
     if (!isCollegeEmail(email)) {
-      setState(() {
-        errorText = 'Use college email only';
-      });
-      return;
-    }
-
-    if (password.length < 6) {
-      setState(() {
-        errorText = 'Password must be at least 6 characters';
-      });
+      setState(() => errorText = 'Use college email only (@citchennai.net)');
       return;
     }
 
@@ -45,97 +51,222 @@ class _FacultyLoginPageState extends State<FacultyLoginPage> {
     });
 
     try {
-      // 🔐 Try login
-      UserCredential userCredential =
-          await FirebaseAuth.instance.signInWithEmailAndPassword(
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
 
-      await _goToFacultyHome(userCredential.user!.uid);
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const FacultyHomePage()),
+      );
     } on FirebaseAuthException catch (e) {
-      // 👤 If user not found → REGISTER automatically
-      if (e.code == 'user-not-found') {
-        try {
-          UserCredential newUser =
-              await FirebaseAuth.instance.createUserWithEmailAndPassword(
-            email: email,
-            password: password,
-          );
-
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(newUser.user!.uid)
-              .set({
-            'email': email,
-            'role': 'faculty',
-            'createdAt': Timestamp.now(),
-          });
-
-          await _goToFacultyHome(newUser.user!.uid);
-        } catch (e) {
-          setState(() {
-            errorText = 'Account creation failed';
-          });
-        }
-      } else {
-        setState(() {
-          errorText = e.message ?? 'Login failed';
-        });
-      }
+      setState(() => errorText = friendlyError(e.code));
     } finally {
-      setState(() {
-        loading = false;
-      });
+      setState(() => loading = false);
     }
   }
 
-  Future<void> _goToFacultyHome(String uid) async {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const FacultyHomePage()),
-    );
+  Future<void> registerUser() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+
+    if (!isCollegeEmail(email)) {
+      setState(() => errorText = 'Use college email only (@citchennai.net)');
+      return;
+    }
+
+    if (password.length < 6) {
+      setState(() => errorText = 'Password must be at least 6 characters');
+      return;
+    }
+
+    setState(() {
+      loading = true;
+      errorText = '';
+    });
+
+    try {
+      await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const FacultyHomePage()),
+      );
+    } on FirebaseAuthException catch (e) {
+      setState(() => errorText = friendlyError(e.code));
+    } finally {
+      setState(() => loading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Faculty Login")),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
+      backgroundColor: const Color(0xFFF5F7FA), // Soft grey background
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: const BackButton(color: Color(0xFF1e3c72)),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            TextField(
-              controller: _emailController,
-              decoration: const InputDecoration(
-                labelText: "Faculty Email",
-                border: OutlineInputBorder(),
+            const SizedBox(height: 20),
+            const Text(
+              "Faculty Portal",
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1e3c72),
               ),
             ),
-            const SizedBox(height: 15),
-            TextField(
-              controller: _passwordController,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: "Password",
-                border: OutlineInputBorder(),
-              ),
+            const Text(
+              "Sign in to access your dashboard",
+              style: TextStyle(fontSize: 16, color: Colors.grey),
+            ),
+            const SizedBox(height: 40),
+
+            // Email Field
+            _buildTextField(
+              controller: _emailController,
+              label: 'College Email',
+              icon: Icons.email_outlined,
+              hint: 'username@citchennai.net',
             ),
             const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: loading ? null : facultyLogin,
-              child: loading
-                  ? const CircularProgressIndicator()
-                  : const Text("Login"),
+
+            // Password Field
+            _buildTextField(
+              controller: _passwordController,
+              label: 'Password',
+              icon: Icons.lock_outline,
+              isPassword: true,
+              hint: '••••••••',
             ),
+
             if (errorText.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              Text(errorText, style: const TextStyle(color: Colors.red)),
-            ]
+              const SizedBox(height: 15),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.error_outline, color: Colors.red, size: 20),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        errorText,
+                        style: const TextStyle(color: Colors.red, fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 40),
+
+            // Login Button
+            SizedBox(
+              width: double.infinity,
+              height: 55,
+              child: ElevatedButton(
+                onPressed: loading ? null : loginUser,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1e3c72),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  elevation: 2,
+                ),
+                child: loading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                      )
+                    : const Text('Login', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // Register Option
+            Center(
+              child: TextButton(
+                onPressed: loading ? null : registerUser,
+                child: RichText(
+                  text: const TextSpan(
+                    text: "First time here? ",
+                    style: TextStyle(color: Colors.grey),
+                    children: [
+                      TextSpan(
+                        text: "Register Now",
+                        style: TextStyle(
+                          color: Color(0xFF1e3c72),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    required String hint,
+    bool isPassword = false,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.black87),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: controller,
+          obscureText: isPassword,
+          decoration: InputDecoration(
+            hintText: hint,
+            prefixIcon: Icon(icon, color: const Color(0xFF1e3c72)),
+            filled: true,
+            fillColor: Colors.white,
+            contentPadding: const EdgeInsets.symmetric(vertical: 16),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(15),
+              borderSide: BorderSide.none,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(15),
+              borderSide: BorderSide(color: Colors.grey.shade200),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(15),
+              borderSide: const BorderSide(color: Color(0xFF1e3c72), width: 1.5),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
