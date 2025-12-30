@@ -56,11 +56,12 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
       setState(() {
         errorText = e.message ?? 'Login failed';
       });
-    } catch (e) {
-      setState(() {
-        errorText = 'Something went wrong';
-      });
-    } finally {
+    }catch (e) {
+     setState(() {
+     errorText = e.toString();
+     });
+     }
+     finally {
       setState(() {
         loading = false;
       });
@@ -176,7 +177,7 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
                         'VERIFY & ENTER',
                         style: TextStyle(
                           fontSize: 16,
-                          fontWeight: FontWeight.black,
+                         fontWeight: FontWeight.bold,
                         ),
                       ),
               ),

@@ -1,10 +1,10 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 
-// Ensure this path matches your project structure
 import 'login_selection_page.dart';
 
 class AdminHomePage extends StatefulWidget {
@@ -15,7 +15,7 @@ class AdminHomePage extends StatefulWidget {
 }
 
 class _AdminHomePageState extends State<AdminHomePage> {
-  // ---------------- TEXT CONTROLLERS ----------------
+  // ---------------- Controllers ----------------
   final nameController = TextEditingController();
   final deptController = TextEditingController();
   final desigController = TextEditingController();
@@ -23,14 +23,15 @@ class _AdminHomePageState extends State<AdminHomePage> {
   final scholarController = TextEditingController();
   final scopusController = TextEditingController();
 
-  // ---------------- IMAGE PICKER ----------------
+  // ---------------- Image ----------------
   File? selectedImage;
   bool loading = false;
 
-  Future<void> pickImage() async {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery);
+  final picker = ImagePicker();
 
+  // ---------------- Pick Image ----------------
+  Future<void> pickImage() async {
+    final picked = await picker.pickImage(source: ImageSource.gallery);
     if (picked != null) {
       setState(() {
         selectedImage = File(picked.path);
@@ -38,7 +39,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
     }
   }
 
-  // ---------------- ADD FACULTY ----------------
+  // ---------------- Add Faculty ----------------
   Future<void> addFaculty() async {
     if (nameController.text.isEmpty ||
         deptController.text.isEmpty ||
@@ -54,7 +55,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
     String? photoUrl;
 
     try {
-      // 1. Upload photo to Firebase Storage
+      // Upload image ONLY if selected
       if (selectedImage != null) {
         final ref = FirebaseStorage.instance
             .ref()
@@ -65,7 +66,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
         photoUrl = await ref.getDownloadURL();
       }
 
-      // 2. Save data to Firestore
+      // Save to Firestore
       await FirebaseFirestore.instance.collection('faculties').add({
         'name': nameController.text.trim(),
         'department': deptController.text.trim(),
@@ -77,25 +78,100 @@ class _AdminHomePageState extends State<AdminHomePage> {
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      // 3. Clear form
       _clearForm();
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Faculty added successfully')),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Faculty added successfully')),
+      );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
     } finally {
-      if (mounted) setState(() => loading = false);
+      setState(() => loading = false);
     }
   }
 
+  // ---------------- Delete Faculty (SAFE) ----------------
+ Future<void> deleteFaculty(DocumentSnapshot doc) async {
+  await doc.reference.delete();
+}
+
+
+  // ---------------- Edit Faculty Dialog ----------------
+  void editFaculty(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+
+    nameController.text = data['name'] ?? '';
+    deptController.text = data['department'] ?? '';
+    desigController.text = data['designation'] ?? '';
+    orcidController.text = data['orcidId'] ?? '';
+    scholarController.text = data['scholarId'] ?? '';
+    scopusController.text = data['scopusId'] ?? '';
+    selectedImage = null;
+
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Edit Faculty'),
+        content: SingleChildScrollView(
+          child: Column(
+            children: [
+              _field(nameController, 'Name'),
+              _field(deptController, 'Department'),
+              _field(desigController, 'Designation'),
+              _field(orcidController, 'ORCID'),
+              _field(scholarController, 'Scholar ID'),
+              _field(scopusController, 'Scopus ID'),
+              const SizedBox(height: 10),
+              ElevatedButton.icon(
+                onPressed: pickImage,
+                icon: const Icon(Icons.image),
+                label: const Text('Change Photo'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              String? newPhotoUrl = data['photoUrl'];
+
+              if (selectedImage != null) {
+                final ref = FirebaseStorage.instance
+                    .ref()
+                    .child('faculty_photos')
+                    .child('${DateTime.now().millisecondsSinceEpoch}.jpg');
+
+                await ref.putFile(selectedImage!);
+                newPhotoUrl = await ref.getDownloadURL();
+              }
+
+              await doc.reference.update({
+                'name': nameController.text.trim(),
+                'department': deptController.text.trim(),
+                'designation': desigController.text.trim(),
+                'orcidId': orcidController.text.trim(),
+                'scholarId': scholarController.text.trim(),
+                'scopusId': scopusController.text.trim(),
+                'photoUrl': newPhotoUrl,
+              });
+
+              _clearForm();
+              Navigator.pop(context);
+            },
+            child: const Text('Update'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------- Clear ----------------
   void _clearForm() {
     nameController.clear();
     deptController.clear();
@@ -103,35 +179,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
     orcidController.clear();
     scholarController.clear();
     scopusController.clear();
-    setState(() => selectedImage = null);
-  }
-
-  // ---------------- DELETE FACULTY (Includes Storage Cleanup) ----------------
-  Future<void> _deleteFaculty(DocumentSnapshot doc) async {
-    try {
-      final data = doc.data() as Map<String, dynamic>;
-      final String? photoUrl = data['photoUrl'];
-
-      // Delete image from storage first
-      if (photoUrl != null && photoUrl.isNotEmpty) {
-        await FirebaseStorage.instance.refFromURL(photoUrl).delete();
-      }
-
-      // Delete Firestore document
-      await doc.reference.delete();
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Faculty deleted successfully')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error deleting: $e')),
-        );
-      }
-    }
+    selectedImage = null;
   }
 
   // ---------------- UI ----------------
@@ -161,16 +209,14 @@ class _AdminHomePageState extends State<AdminHomePage> {
                 onTap: pickImage,
                 child: CircleAvatar(
                   radius: 45,
-                  backgroundColor: Colors.deepPurple.shade100,
                   backgroundImage:
                       selectedImage != null ? FileImage(selectedImage!) : null,
-                  child: selectedImage == null
-                      ? const Icon(Icons.camera_alt, size: 30)
-                      : null,
+                  child:
+                      selectedImage == null ? const Icon(Icons.camera_alt) : null,
                 ),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 15),
             _field(nameController, 'Faculty Name'),
             _field(deptController, 'Department'),
             _field(desigController, 'Designation'),
@@ -180,14 +226,10 @@ class _AdminHomePageState extends State<AdminHomePage> {
             const SizedBox(height: 15),
             SizedBox(
               width: double.infinity,
-              height: 50,
               child: ElevatedButton(
                 onPressed: loading ? null : addFaculty,
                 child: loading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2))
+                    ? const CircularProgressIndicator()
                     : const Text('Add Faculty'),
               ),
             ),
@@ -198,53 +240,70 @@ class _AdminHomePageState extends State<AdminHomePage> {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 10),
+
+            // -------- Faculty List --------
             StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
                   .collection('faculties')
                   .orderBy('createdAt', descending: true)
                   .snapshots(),
               builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
+                if (!snapshot.hasData) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+
+                final docs = snapshot.data!.docs;
+
+                if (docs.isEmpty) {
                   return const Padding(
                     padding: EdgeInsets.all(20),
                     child: Text('No faculty added yet'),
                   );
                 }
 
-                final docs = snapshot.data!.docs;
-
                 return ListView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: docs.length,
-                  itemBuilder: (context, index) {
-                    final doc = docs[index];
+                  itemBuilder: (_, i) {
+                    final doc = docs[i];
                     final data = doc.data() as Map<String, dynamic>;
 
                     return Card(
-                      margin: const EdgeInsets.only(bottom: 12),
                       child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundImage: data['photoUrl'] != null
-                              ? NetworkImage(data['photoUrl'])
-                              : null,
-                          child: data['photoUrl'] == null
-                              ? Text(data['name'][0])
-                              : null,
-                        ),
-                        title: Text(data['name'] ?? 'N/A'),
+                       leading: CircleAvatar(
+  backgroundColor: Colors.grey.shade300,
+  backgroundImage: (data['photoUrl'] != null &&
+          data['photoUrl'].toString().isNotEmpty)
+      ? NetworkImage(data['photoUrl'])
+      : null,
+  child: (data['photoUrl'] == null ||
+          data['photoUrl'].toString().isEmpty)
+      ? Text(
+          data['name'][0].toUpperCase(),
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.black,
+          ),
+        )
+      : null,
+),
+
+                        title: Text(data['name']),
                         subtitle: Text(
                           '${data['department']} • ${data['designation']}',
                         ),
                         trailing: PopupMenuButton(
                           onSelected: (value) {
-                            if (value == 'delete') _deleteFaculty(doc);
+                            if (value == 'edit') editFaculty(doc);
+                            if (value == 'delete') deleteFaculty(doc);
                           },
-                          itemBuilder: (_) => [
-                            const PopupMenuItem(
+                          itemBuilder: (_) => const [
+                            PopupMenuItem(
+                              value: 'edit',
+                              child: Text('Edit'),
+                            ),
+                            PopupMenuItem(
                               value: 'delete',
                               child: Text('Delete'),
                             ),
@@ -262,15 +321,14 @@ class _AdminHomePageState extends State<AdminHomePage> {
     );
   }
 
-  // ---------------- HELPER WIDGETS ----------------
-  Widget _field(TextEditingController controller, String label) {
+  // ---------------- Field Widget ----------------
+  Widget _field(TextEditingController c, String label) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: TextField(
-        controller: controller,
+        controller: c,
         decoration: InputDecoration(
           labelText: label,
-          isDense: true,
           border: const OutlineInputBorder(),
         ),
       ),
