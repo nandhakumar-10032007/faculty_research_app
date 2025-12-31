@@ -19,54 +19,50 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
 
   // 🔐 Logic preserved exactly as provided
   Future<void> adminLogin() async {
-    final email = _emailController.text.trim();
-    final password = _passwordController.text.trim();
+  final email = _emailController.text.trim();
+  final password = _passwordController.text.trim();
 
-    setState(() {
-      loading = true;
-      errorText = '';
-    });
+  setState(() {
+    loading = true;
+    errorText = '';
+  });
 
-    try {
-      final userCredential =
-          await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: email,
-        password: password,
+  try {
+    final userCredential =
+        await FirebaseAuth.instance.signInWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
+
+    final uid = userCredential.user!.uid;
+
+    final adminDoc = await FirebaseFirestore.instance
+        .collection('admins')
+        .doc(uid)
+        .get();
+
+    if (!adminDoc.exists) {
+      throw FirebaseAuthException(
+        code: 'not-admin',
+        message: 'You are not authorized as admin',
       );
-
-      final uid = userCredential.user!.uid;
-
-      final adminDoc = await FirebaseFirestore.instance
-          .collection('admins')
-          .doc(uid)
-          .get();
-
-      if (!adminDoc.exists) {
-        throw FirebaseAuthException(
-          code: 'not-admin',
-          message: 'You are not authorized as admin',
-        );
-      }
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const AdminHomePage()),
-      );
-    } on FirebaseAuthException catch (e) {
-      setState(() {
-        errorText = e.message ?? 'Login failed';
-      });
-    }catch (e) {
-     setState(() {
-     errorText = e.toString();
-     });
-     }
-     finally {
-      setState(() {
-        loading = false;
-      });
     }
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const AdminHomePage()),
+    );
+  } on FirebaseAuthException catch (e) {
+    setState(() {
+      errorText = e.message ?? 'Login failed';
+    });
+  } finally {
+    setState(() {
+      loading = false;
+    });
   }
+}
+
 
   @override
   void dispose() {

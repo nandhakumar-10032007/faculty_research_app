@@ -1,9 +1,10 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'login_selection_page.dart';
 
@@ -28,6 +29,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
   bool loading = false;
 
   final picker = ImagePicker();
+  final supabase = Supabase.instance.client;
 
   // ---------------- Pick Image ----------------
   Future<void> pickImage() async {
@@ -37,6 +39,29 @@ class _AdminHomePageState extends State<AdminHomePage> {
         selectedImage = File(picked.path);
       });
     }
+  }
+
+  // ---------------- Upload Image to Supabase (FIXED) ----------------
+  Future<String> uploadPhotoToSupabase(File file) async {
+    final fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
+
+    // 🔑 FIX: Convert File → bytes
+    Uint8List bytes = await file.readAsBytes();
+
+    await supabase.storage.from('faculty_photos').uploadBinary(
+          fileName,
+          bytes,
+          fileOptions: const FileOptions(
+            contentType: 'image/jpeg',
+            upsert: true,
+          ),
+        );
+
+    // Public URL
+    final imageUrl =
+        supabase.storage.from('faculty_photos').getPublicUrl(fileName);
+
+    return imageUrl;
   }
 
   // ---------------- Add Faculty ----------------
@@ -52,18 +77,12 @@ class _AdminHomePageState extends State<AdminHomePage> {
 
     setState(() => loading = true);
 
-    String? photoUrl;
+    String photoUrl = '';
 
     try {
-      // Upload image ONLY if selected
+      // Upload image if selected
       if (selectedImage != null) {
-        final ref = FirebaseStorage.instance
-            .ref()
-            .child('faculty_photos')
-            .child('${DateTime.now().millisecondsSinceEpoch}.jpg');
-
-        await ref.putFile(selectedImage!);
-        photoUrl = await ref.getDownloadURL();
+        photoUrl = await uploadPhotoToSupabase(selectedImage!);
       }
 
       // Save to Firestore
@@ -92,13 +111,12 @@ class _AdminHomePageState extends State<AdminHomePage> {
     }
   }
 
-  // ---------------- Delete Faculty (SAFE) ----------------
- Future<void> deleteFaculty(DocumentSnapshot doc) async {
-  await doc.reference.delete();
-}
+  // ---------------- Delete Faculty ----------------
+  Future<void> deleteFaculty(DocumentSnapshot doc) async {
+    await doc.reference.delete();
+  }
 
-
-  // ---------------- Edit Faculty Dialog ----------------
+  // ---------------- Edit Faculty ----------------
   void editFaculty(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
 
@@ -139,16 +157,11 @@ class _AdminHomePageState extends State<AdminHomePage> {
           ),
           ElevatedButton(
             onPressed: () async {
-              String? newPhotoUrl = data['photoUrl'];
+              String newPhotoUrl = data['photoUrl'] ?? '';
 
               if (selectedImage != null) {
-                final ref = FirebaseStorage.instance
-                    .ref()
-                    .child('faculty_photos')
-                    .child('${DateTime.now().millisecondsSinceEpoch}.jpg');
-
-                await ref.putFile(selectedImage!);
-                newPhotoUrl = await ref.getDownloadURL();
+                newPhotoUrl =
+                    await uploadPhotoToSupabase(selectedImage!);
               }
 
               await doc.reference.update({
@@ -193,7 +206,9 @@ class _AdminHomePageState extends State<AdminHomePage> {
             icon: const Icon(Icons.logout),
             onPressed: () => Navigator.pushAndRemoveUntil(
               context,
-              MaterialPageRoute(builder: (_) => const LoginSelectionPage()),
+              MaterialPageRoute(
+                builder: (_) => const LoginSelectionPage(),
+              ),
               (_) => false,
             ),
           )
@@ -211,8 +226,9 @@ class _AdminHomePageState extends State<AdminHomePage> {
                   radius: 45,
                   backgroundImage:
                       selectedImage != null ? FileImage(selectedImage!) : null,
-                  child:
-                      selectedImage == null ? const Icon(Icons.camera_alt) : null,
+                  child: selectedImage == null
+                      ? const Icon(Icons.camera_alt)
+                      : null,
                 ),
               ),
             ),
@@ -241,7 +257,6 @@ class _AdminHomePageState extends State<AdminHomePage> {
             ),
             const SizedBox(height: 10),
 
-            // -------- Faculty List --------
             StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
                   .collection('faculties')
@@ -249,7 +264,8 @@ class _AdminHomePageState extends State<AdminHomePage> {
                   .snapshots(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const Center(
+                      child: CircularProgressIndicator());
                 }
 
                 final docs = snapshot.data!.docs;
@@ -267,36 +283,41 @@ class _AdminHomePageState extends State<AdminHomePage> {
                   itemCount: docs.length,
                   itemBuilder: (_, i) {
                     final doc = docs[i];
-                    final data = doc.data() as Map<String, dynamic>;
+                    final data =
+                        doc.data() as Map<String, dynamic>;
 
                     return Card(
                       child: ListTile(
-                       leading: CircleAvatar(
-  backgroundColor: Colors.grey.shade300,
-  backgroundImage: (data['photoUrl'] != null &&
-          data['photoUrl'].toString().isNotEmpty)
-      ? NetworkImage(data['photoUrl'])
-      : null,
-  child: (data['photoUrl'] == null ||
-          data['photoUrl'].toString().isEmpty)
-      ? Text(
-          data['name'][0].toUpperCase(),
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.black,
-          ),
-        )
-      : null,
-),
-
+                        leading: CircleAvatar(
+                          backgroundImage:
+                              (data['photoUrl'] != null &&
+                                      data['photoUrl']
+                                          .toString()
+                                          .startsWith('http'))
+                                  ? NetworkImage(data['photoUrl'])
+                                  : null,
+                          child: (data['photoUrl'] == null ||
+                                  data['photoUrl']
+                                      .toString()
+                                      .isEmpty)
+                              ? Text(
+                                  data['name']
+                                          .toString()[0]
+                                          .toUpperCase(),
+                                )
+                              : null,
+                        ),
                         title: Text(data['name']),
                         subtitle: Text(
                           '${data['department']} • ${data['designation']}',
                         ),
                         trailing: PopupMenuButton(
                           onSelected: (value) {
-                            if (value == 'edit') editFaculty(doc);
-                            if (value == 'delete') deleteFaculty(doc);
+                            if (value == 'edit') {
+                              editFaculty(doc);
+                            } else if (value == 'delete') {
+                              deleteFaculty(doc);
+                            }
                           },
                           itemBuilder: (_) => const [
                             PopupMenuItem(
@@ -321,7 +342,6 @@ class _AdminHomePageState extends State<AdminHomePage> {
     );
   }
 
-  // ---------------- Field Widget ----------------
   Widget _field(TextEditingController c, String label) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
