@@ -6,6 +6,10 @@ import 'package:http/http.dart' as http;
 import 'login_selection_page.dart';
 import '../services/orcid_service.dart';
 
+import 'add_fdb_page.dart';
+import 'view_fdb_page.dart';
+
+
 class FacultyHomePage extends StatelessWidget {
   const FacultyHomePage({super.key});
 
@@ -65,50 +69,54 @@ class FacultyHomePage extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       /// HEADER
-                      Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 26,
-                            backgroundColor: Colors.deepPurple.shade100,
-                            backgroundImage: (data['photoUrl'] != null &&
-                                    data['photoUrl'].toString().isNotEmpty)
-                                ? NetworkImage(data['photoUrl'])
-                                : null,
-                            child: (data['photoUrl'] == null ||
-                                    data['photoUrl'].toString().isEmpty)
-                                ? Text(
-                                    data['name'][0].toUpperCase(),
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.deepPurple,
-                                    ),
-                                  )
-                                : null,
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  data['name'],
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                Text(
-                                  '${data['department']} • ${data['designation'] ?? '-'}',
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
+                     Row(
+  children: [
+    CircleAvatar(
+      radius: 26,
+      backgroundColor: Colors.deepPurple.shade100,
+      backgroundImage: (data['photoUrl'] != null &&
+              data['photoUrl'].toString().isNotEmpty)
+          ? NetworkImage(data['photoUrl'])
+          : null,
+      child: (data['photoUrl'] == null ||
+              data['photoUrl'].toString().isEmpty)
+          ? Text(
+              data['name'][0].toUpperCase(),
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.deepPurple,
+              ),
+            )
+          : null,
+    ),
+    const SizedBox(width: 14),
+    Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            data['name'],
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Text(
+            '${data['department']} • ${data['designation'] ?? '-'}',
+            style: const TextStyle(
+              fontSize: 13,
+              color: Colors.grey,
+            ),
+          ),
+        ],
+      ),
+    ),
+
+    // ✅ ADD THIS INSIDE VISHNU'S Row
+    fdbThreeDotMenu(context),
+  ],
+),
+
 
                       const SizedBox(height: 10),
                       const Divider(),
@@ -154,6 +162,20 @@ class FacultyHomePage extends StatelessWidget {
                                     _metricChip(
                                         'Books',
                                         counts['book'] ?? 0),
+                                    FutureBuilder<QuerySnapshot>(
+  future: FirebaseFirestore.instance
+      .collection('FDB datum')
+      .where('facultyName', isEqualTo: data['name'])
+      .get(),
+  builder: (context, fdbSnapshot) {
+    if (!fdbSnapshot.hasData) {
+      return _metricChip('FDB', 0);
+    }
+
+    return _metricChip('FDB', fdbSnapshot.data!.docs.length);
+  },
+),
+
                                   ],
                                 );
                               },
@@ -440,3 +462,31 @@ class _PublicationBottomSheetState
   }
 }
 
+Widget fdbThreeDotMenu(BuildContext context) {
+  return PopupMenuButton<String>(
+    icon: const Icon(Icons.more_vert),
+    onSelected: (value) {
+      if (value == 'add') {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const AddFdbPage()),
+        );
+      } else if (value == 'view') {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const ViewFdbPage()),
+        );
+      }
+    },
+    itemBuilder: (context) => const [
+      PopupMenuItem(
+        value: 'add',
+        child: Text('Add FDB'),
+      ),
+      PopupMenuItem(
+        value: 'view',
+        child: Text('View FDB'),
+      ),
+    ],
+  );
+}
