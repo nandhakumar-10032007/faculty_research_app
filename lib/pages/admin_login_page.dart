@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+
 import 'admin_home_page.dart';
 
 class AdminLoginPage extends StatefulWidget {
@@ -17,52 +18,52 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
   String errorText = '';
   bool loading = false;
 
-  // 🔐 Logic preserved exactly as provided
+  
+  // 🔐 ADMIN LOGIN LOGIC (UNCHANGED & CORRECT)
   Future<void> adminLogin() async {
-  final email = _emailController.text.trim();
-  final password = _passwordController.text.trim();
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
 
-  setState(() {
-    loading = true;
-    errorText = '';
-  });
+    setState(() {
+      loading = true;
+      errorText = '';
+    });
 
-  try {
-    final userCredential =
-        await FirebaseAuth.instance.signInWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
-
-    final uid = userCredential.user!.uid;
-
-    final adminDoc = await FirebaseFirestore.instance
-        .collection('admins')
-        .doc(uid)
-        .get();
-
-    if (!adminDoc.exists) {
-      throw FirebaseAuthException(
-        code: 'not-admin',
-        message: 'You are not authorized as admin',
+    try {
+      final userCredential =
+          await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: password,
       );
+
+      final uid = userCredential.user!.uid;
+
+      final adminDoc = await FirebaseFirestore.instance
+          .collection('admins')
+          .doc(uid)
+          .get();
+
+      if (!adminDoc.exists) {
+        throw FirebaseAuthException(
+          code: 'not-admin',
+          message: 'You are not authorized as admin',
+        );
+      }
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const AdminHomePage()),
+      );
+    } on FirebaseAuthException catch (e) {
+      setState(() {
+        errorText = e.message ?? 'Login failed';
+      });
+    } finally {
+      setState(() {
+        loading = false;
+      });
     }
-
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const AdminHomePage()),
-    );
-  } on FirebaseAuthException catch (e) {
-    setState(() {
-      errorText = e.message ?? 'Login failed';
-    });
-  } finally {
-    setState(() {
-      loading = false;
-    });
   }
-}
-
 
   @override
   void dispose() {
@@ -74,7 +75,7 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF121212), // Dark, secure background
+      backgroundColor: const Color(0xFF121212),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -85,7 +86,8 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
         child: Column(
           children: [
             const SizedBox(height: 20),
-            // Admin-Specific Branding
+
+            // Admin Icon
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -98,7 +100,9 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
                 color: Colors.amber,
               ),
             ),
+
             const SizedBox(height: 30),
+
             const Text(
               "Administrator",
               style: TextStyle(
@@ -112,18 +116,20 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
               "Access high-level system controls",
               style: TextStyle(color: Colors.white54, fontSize: 14),
             ),
+
             const SizedBox(height: 50),
 
-            // Email Field
+            // Email
             _buildAdminField(
               controller: _emailController,
               label: 'Admin Email',
               icon: Icons.security_rounded,
               hint: 'admin@system.com',
             ),
+
             const SizedBox(height: 20),
 
-            // Password Field
+            // Password
             _buildAdminField(
               controller: _passwordController,
               label: 'Secret Key',
@@ -132,7 +138,6 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
               hint: '••••••••',
             ),
 
-            // Error Display
             if (errorText.isNotEmpty) ...[
               const SizedBox(height: 20),
               Container(
@@ -141,19 +146,24 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
                 decoration: BoxDecoration(
                   color: Colors.redAccent.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.redAccent.withOpacity(0.5)),
+                  border: Border.all(
+                    color: Colors.redAccent.withOpacity(0.5),
+                  ),
                 ),
                 child: Text(
                   errorText,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.redAccent, fontSize: 14),
+                  style: const TextStyle(
+                    color: Colors.redAccent,
+                    fontSize: 14,
+                  ),
                 ),
               ),
             ],
 
             const SizedBox(height: 40),
 
-            // Secure Login Button
+            // Login Button
             SizedBox(
               width: double.infinity,
               height: 55,
@@ -173,7 +183,7 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
                         'VERIFY & ENTER',
                         style: TextStyle(
                           fontSize: 16,
-                         fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
               ),
@@ -216,14 +226,17 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
             prefixIcon: Icon(icon, color: Colors.amber.withOpacity(0.7)),
             filled: true,
             fillColor: Colors.white.withOpacity(0.05),
-            contentPadding: const EdgeInsets.symmetric(vertical: 18),
+            contentPadding:
+                const EdgeInsets.symmetric(vertical: 18),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+              borderSide:
+                  BorderSide(color: Colors.white.withOpacity(0.1)),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Colors.amber, width: 1.5),
+              borderSide:
+                  const BorderSide(color: Colors.amber, width: 1.5),
             ),
           ),
         ),

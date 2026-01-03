@@ -28,6 +28,9 @@ class _AdminHomePageState extends State<AdminHomePage> {
   File? selectedImage;
   bool loading = false;
 
+  // ⭐ NEW: destination selector
+  String destination = 'faculty'; // faculty | student
+
   final picker = ImagePicker();
   final supabase = Supabase.instance.client;
 
@@ -41,11 +44,9 @@ class _AdminHomePageState extends State<AdminHomePage> {
     }
   }
 
-  // ---------------- Upload Image to Supabase (FIXED) ----------------
+  // ---------------- Upload Image to Supabase ----------------
   Future<String> uploadPhotoToSupabase(File file) async {
     final fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
-
-    // 🔑 FIX: Convert File → bytes
     Uint8List bytes = await file.readAsBytes();
 
     await supabase.storage.from('faculty_photos').uploadBinary(
@@ -57,14 +58,10 @@ class _AdminHomePageState extends State<AdminHomePage> {
           ),
         );
 
-    // Public URL
-    final imageUrl =
-        supabase.storage.from('faculty_photos').getPublicUrl(fileName);
-
-    return imageUrl;
+    return supabase.storage.from('faculty_photos').getPublicUrl(fileName);
   }
 
-  // ---------------- Add Faculty ----------------
+  // ---------------- Add Faculty / Student ----------------
   Future<void> addFaculty() async {
     if (nameController.text.isEmpty ||
         deptController.text.isEmpty ||
@@ -80,13 +77,11 @@ class _AdminHomePageState extends State<AdminHomePage> {
     String photoUrl = '';
 
     try {
-      // Upload image if selected
       if (selectedImage != null) {
         photoUrl = await uploadPhotoToSupabase(selectedImage!);
       }
 
-      // Save to Firestore
-      await FirebaseFirestore.instance.collection('faculties').add({
+      final data = {
         'name': nameController.text.trim(),
         'department': deptController.text.trim(),
         'designation': desigController.text.trim(),
@@ -95,12 +90,26 @@ class _AdminHomePageState extends State<AdminHomePage> {
         'scopusId': scopusController.text.trim(),
         'photoUrl': photoUrl,
         'createdAt': FieldValue.serverTimestamp(),
-      });
+      };
+
+      // ⭐ SAVE BASED ON DESTINATION
+      final collectionName =
+          destination == 'faculty' ? 'faculties' : 'students';
+
+      await FirebaseFirestore.instance
+          .collection(collectionName)
+          .add(data);
 
       _clearForm();
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Faculty added successfully')),
+        SnackBar(
+          content: Text(
+            destination == 'faculty'
+                ? 'Faculty added successfully'
+                : 'Student added successfully',
+          ),
+        ),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -111,78 +120,117 @@ class _AdminHomePageState extends State<AdminHomePage> {
     }
   }
 
-  // ---------------- Delete Faculty ----------------
-  Future<void> deleteFaculty(DocumentSnapshot doc) async {
-    await doc.reference.delete();
-  }
-
-  // ---------------- Edit Faculty ----------------
-  void editFaculty(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
-
-    nameController.text = data['name'] ?? '';
-    deptController.text = data['department'] ?? '';
-    desigController.text = data['designation'] ?? '';
-    orcidController.text = data['orcidId'] ?? '';
-    scholarController.text = data['scholarId'] ?? '';
-    scopusController.text = data['scopusId'] ?? '';
-    selectedImage = null;
-
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Edit Faculty'),
-        content: SingleChildScrollView(
-          child: Column(
-            children: [
-              _field(nameController, 'Name'),
-              _field(deptController, 'Department'),
-              _field(desigController, 'Designation'),
-              _field(orcidController, 'ORCID'),
-              _field(scholarController, 'Scholar ID'),
-              _field(scopusController, 'Scopus ID'),
-              const SizedBox(height: 10),
-              ElevatedButton.icon(
-                onPressed: pickImage,
-                icon: const Icon(Icons.image),
-                label: const Text('Change Photo'),
-              ),
-            ],
-          ),
+  // ---------------- Delete ----------------
+ Future<void> deleteFaculty(DocumentSnapshot doc) async {
+  showDialog(
+    context: context,
+    builder: (_) => AlertDialog(
+      title: const Text('Confirm Delete'),
+      content: const Text('Are you sure you want to delete this record?'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              String newPhotoUrl = data['photoUrl'] ?? '';
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+          onPressed: () async {
+            await doc.reference.delete();
+            Navigator.pop(context);
+          },
+          child: const Text('Delete'),
+        ),
+      ],
+    ),
+  );
+}
 
-              if (selectedImage != null) {
-                newPhotoUrl =
-                    await uploadPhotoToSupabase(selectedImage!);
-              }
+  // ---------------Edit---------------------
+  void showEditDialog(DocumentSnapshot doc) {
+  final data = doc.data() as Map<String, dynamic>;
 
-              await doc.reference.update({
-                'name': nameController.text.trim(),
-                'department': deptController.text.trim(),
-                'designation': desigController.text.trim(),
-                'orcidId': orcidController.text.trim(),
-                'scholarId': scholarController.text.trim(),
-                'scopusId': scopusController.text.trim(),
-                'photoUrl': newPhotoUrl,
-              });
+  nameController.text = data['name'] ?? '';
+  deptController.text = data['department'] ?? '';
+  desigController.text = data['designation'] ?? '';
+  orcidController.text = data['orcidId'] ?? '';
+  scholarController.text = data['scholarId'] ?? '';
+  scopusController.text = data['scopusId'] ?? '';
 
-              _clearForm();
-              Navigator.pop(context);
-            },
-            child: const Text('Update'),
-          ),
-        ],
+  selectedImage = null;
+
+  showDialog(
+    context: context,
+    builder: (_) => AlertDialog(
+      title: const Text('Edit Details'),
+      content: SingleChildScrollView(
+        child: Column(
+          children: [
+            // ✅ PHOTO EDIT (FIXED)
+            GestureDetector(
+              onTap: pickImage,
+              child: CircleAvatar(
+                radius: 40,
+                backgroundImage: selectedImage != null
+                    ? FileImage(selectedImage!) as ImageProvider
+                    : (data['photoUrl'] != null &&
+                            data['photoUrl'].toString().startsWith('http'))
+                        ? NetworkImage(data['photoUrl']) as ImageProvider
+                        : null,
+                child: selectedImage == null &&
+                        (data['photoUrl'] == null ||
+                            data['photoUrl'].toString().isEmpty)
+                    ? const Icon(Icons.camera_alt)
+                    : null,
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            _field(nameController, 'Name'),
+            _field(deptController, 'Department'),
+            _field(desigController, 'Designation'),
+            _field(orcidController, 'ORCID ID'),
+            _field(scholarController, 'Scholar ID'),
+            _field(scopusController, 'Scopus ID'),
+          ],
+        ),
       ),
-    );
-  }
+      actions: [
+        TextButton(
+          onPressed: () {
+            Navigator.pop(context);
+            _clearForm();
+          },
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () async {
+            String photoUrl = data['photoUrl'] ?? '';
+
+            // upload new image only if selected
+            if (selectedImage != null) {
+              photoUrl = await uploadPhotoToSupabase(selectedImage!);
+            }
+
+            await doc.reference.update({
+              'name': nameController.text.trim(),
+              'department': deptController.text.trim(),
+              'designation': desigController.text.trim(),
+              'orcidId': orcidController.text.trim(),
+              'scholarId': scholarController.text.trim(),
+              'scopusId': scopusController.text.trim(),
+              'photoUrl': photoUrl,
+            });
+
+            Navigator.pop(context);
+            _clearForm();
+          },
+          child: const Text('Save'),
+        ),
+      ],
+    ),
+  );
+}
 
   // ---------------- Clear ----------------
   void _clearForm() {
@@ -198,6 +246,9 @@ class _AdminHomePageState extends State<AdminHomePage> {
   // ---------------- UI ----------------
   @override
   Widget build(BuildContext context) {
+    final activeCollection =
+        destination == 'faculty' ? 'faculties' : 'students';
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Admin Home'),
@@ -219,6 +270,31 @@ class _AdminHomePageState extends State<AdminHomePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // ⭐ DESTINATION SELECTOR
+            Row(
+              children: [
+                const Text(
+                  'Destination:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(width: 10),
+                Radio<String>(
+                  value: 'faculty',
+                  groupValue: destination,
+                  onChanged: (v) => setState(() => destination = v!),
+                ),
+                const Text('Faculty'),
+                Radio<String>(
+                  value: 'student',
+                  groupValue: destination,
+                  onChanged: (v) => setState(() => destination = v!),
+                ),
+                const Text('Student'),
+              ],
+            ),
+
+            const SizedBox(height: 10),
+
             Center(
               child: GestureDetector(
                 onTap: pickImage,
@@ -232,48 +308,71 @@ class _AdminHomePageState extends State<AdminHomePage> {
                 ),
               ),
             ),
+
             const SizedBox(height: 15),
-            _field(nameController, 'Faculty Name'),
+            _field(nameController, destination == 'faculty'
+                ? 'Faculty Name'
+                : 'Student Name'),
             _field(deptController, 'Department'),
-            _field(desigController, 'Designation'),
+            _field(desigController, destination == 'faculty'
+                ? 'Designation'
+                : 'Designation'),
             _field(orcidController, 'ORCID ID'),
             _field(scholarController, 'Google Scholar ID'),
             _field(scopusController, 'Scopus ID'),
+
             const SizedBox(height: 15),
+
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: loading ? null : addFaculty,
                 child: loading
                     ? const CircularProgressIndicator()
-                    : const Text('Add Faculty'),
+                    : Text(destination == 'faculty'
+                        ? 'Add Faculty'
+                        : 'Add Student'),
               ),
             ),
+
             const SizedBox(height: 30),
             const Divider(),
-            const Text(
-              'Faculty List',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+
+            Text(
+              destination == 'faculty'
+                  ? 'Faculty List'
+                  : 'Student List',
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
             ),
+
             const SizedBox(height: 10),
 
+            // ⭐ DYNAMIC LIST
             StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
-                  .collection('faculties')
+                  .collection(activeCollection)
                   .orderBy('createdAt', descending: true)
                   .snapshots(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
                   return const Center(
-                      child: CircularProgressIndicator());
+                    child: CircularProgressIndicator(),
+                  );
                 }
 
                 final docs = snapshot.data!.docs;
 
                 if (docs.isEmpty) {
-                  return const Padding(
-                    padding: EdgeInsets.all(20),
-                    child: Text('No faculty added yet'),
+                  return Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Text(
+                      destination == 'faculty'
+                          ? 'No faculty added yet'
+                          : 'No students added yet',
+                    ),
                   );
                 }
 
@@ -283,8 +382,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
                   itemCount: docs.length,
                   itemBuilder: (_, i) {
                     final doc = docs[i];
-                    final data =
-                        doc.data() as Map<String, dynamic>;
+                    final data = doc.data() as Map<String, dynamic>;
 
                     return Card(
                       child: ListTile(
@@ -297,39 +395,41 @@ class _AdminHomePageState extends State<AdminHomePage> {
                                   ? NetworkImage(data['photoUrl'])
                                   : null,
                           child: (data['photoUrl'] == null ||
-                                  data['photoUrl']
-                                      .toString()
-                                      .isEmpty)
+                                  data['photoUrl'].toString().isEmpty)
                               ? Text(
-                                  data['name']
-                                          .toString()[0]
-                                          .toUpperCase(),
+                                  (data['name'] ?? 'U').toString()[0].toUpperCase(),
                                 )
+
                               : null,
                         ),
-                        title: Text(data['name']),
+                       title: Text(data['name'] ?? 'No Name'),
                         subtitle: Text(
-                          '${data['department']} • ${data['designation']}',
+                         '${data['department'] ?? 'N/A'} • ${data['designation'] ?? 'N/A'}',
                         ),
-                        trailing: PopupMenuButton(
-                          onSelected: (value) {
-                            if (value == 'edit') {
-                              editFaculty(doc);
-                            } else if (value == 'delete') {
-                              deleteFaculty(doc);
-                            }
-                          },
-                          itemBuilder: (_) => const [
-                            PopupMenuItem(
-                              value: 'edit',
-                              child: Text('Edit'),
-                            ),
-                            PopupMenuItem(
-                              value: 'delete',
-                              child: Text('Delete'),
-                            ),
-                          ],
+
+                         trailing: PopupMenuButton<String>(
+                            onSelected: (value) {
+                             if (value == 'edit') {
+                                if (value == 'edit') {
+                                      showEditDialog(doc);
+                                }
+
+                             } else if (value == 'delete') {
+                             deleteFaculty(doc);
+                             }
+                           },
+                            itemBuilder: (context) => [
+                              const PopupMenuItem(
+                                value: 'edit',
+                                  child: Text('Edit'),
+                              ),
+                                const PopupMenuItem(
+                                  value: 'delete',
+                                  child: Text('Delete'),
+                                ),
+                            ],
                         ),
+
                       ),
                     );
                   },

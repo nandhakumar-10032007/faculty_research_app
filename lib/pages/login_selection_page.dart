@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+
 import 'admin_login_page.dart';
-import 'faculty_login_page.dart';
+import 'Faculty_Home_page.dart';
+import 'student_home_page.dart';
 
 class LoginSelectionPage extends StatelessWidget {
   const LoginSelectionPage({super.key});
@@ -14,12 +16,16 @@ class LoginSelectionPage extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFF1e3c72), Color(0xFF2a5298)], // Deep Professional Blue
+            colors: [
+              Color(0xFF1e3c72),
+              Color(0xFF2a5298),
+            ],
           ),
         ),
         child: Column(
           children: [
             const SizedBox(height: 100),
+
             // Header Section
             const Icon(Icons.school_rounded, size: 80, color: Colors.white),
             const SizedBox(height: 20),
@@ -36,43 +42,69 @@ class LoginSelectionPage extends StatelessWidget {
               'Please select your portal to continue',
               style: TextStyle(color: Colors.white70, fontSize: 16),
             ),
+
             const Spacer(),
-            
+
             // Selection Cards
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 30),
               child: Column(
                 children: [
+                  // 🔑 ADMIN (ALWAYS OPEN LOGIN PAGE)
                   _buildSelectionCard(
                     context,
                     title: 'Admin Portal',
                     subtitle: 'Manage faculty, students & settings',
                     icon: Icons.admin_panel_settings_rounded,
-                    color: Colors.white,
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => const AdminLoginPage()),
+                        MaterialPageRoute(
+                          builder: (_) => const AdminLoginPage(),
+                        ),
                       );
                     },
                   ),
+
                   const SizedBox(height: 20),
+
+                  // 👨‍🏫 FACULTY
                   _buildSelectionCard(
                     context,
                     title: 'Faculty Portal',
-                    subtitle: 'Access classes, grades & schedules',
+                    subtitle: 'Access research & publications',
                     icon: Icons.person_search_rounded,
-                    color: Colors.white,
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => FacultyLoginPage()),
+                        MaterialPageRoute(
+                          builder: (_) => FacultyHomePage(),
+                        ),
+                      );
+                    },
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // 🎓 STUDENT
+                  _buildSelectionCard(
+                    context,
+                    title: 'Student Portal',
+                    subtitle: 'View research & publications',
+                    icon: Icons.school_outlined,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => StudentHomePage(),
+                        ),
                       );
                     },
                   ),
                 ],
               ),
             ),
+
             const SizedBox(height: 100),
           ],
         ),
@@ -85,7 +117,6 @@ class LoginSelectionPage extends StatelessWidget {
     required String title,
     required String subtitle,
     required IconData icon,
-    required Color color,
     required VoidCallback onTap,
   }) {
     return InkWell(
@@ -94,9 +125,12 @@ class LoginSelectionPage extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.15),
+          color: Colors.white.withOpacity(0.15),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white.withOpacity(0.2), width: 1.5),
+          border: Border.all(
+            color: Colors.white.withOpacity(0.2),
+            width: 1.5,
+          ),
         ),
         child: Row(
           children: [
@@ -106,7 +140,11 @@ class LoginSelectionPage extends StatelessWidget {
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(15),
               ),
-              child: Icon(icon, size: 30, color: const Color(0xFF1e3c72)),
+              child: Icon(
+                icon,
+                size: 30,
+                color: const Color(0xFF1e3c72),
+              ),
             ),
             const SizedBox(width: 20),
             Expanded(
@@ -123,16 +161,22 @@ class LoginSelectionPage extends StatelessWidget {
                   ),
                   Text(
                     subtitle,
-                    style: const TextStyle(fontSize: 13, color: Colors.white70),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Colors.white70,
+                    ),
                   ),
                 ],
               ),
             ),
-            const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 18),
+            const Icon(
+              Icons.arrow_forward_ios_rounded,
+              color: Colors.white,
+              size: 18,
+            ),
           ],
         ),
       ),
     );
   }
 }
-
